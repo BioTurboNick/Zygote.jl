@@ -263,23 +263,15 @@ using ForwardDiff: Dual, Partials, value, partials
     return Complex(re_dual, im_dual)
 end
 
-function dualize(args::Vararg{Any, N}) where {N}
+@inline function dualize(args::Vararg{Any, N}) where {N}
     ds = map(args, ntuple(identity,N)) do x, i
         return dual(x, i, Val(N))
       end
       return ds
 end
 
-@inline function dual_function(f::F) where F
-    function (args::Vararg{Any,N}) where N
-      ds = dualize(args...)
-      return f(ds...)
-    end
-  end
-
-
 @inline function broadcast_forward(f, args::Vararg{Any,N}) where N
-  out = dual_function(f).(args...)
+  out = (args -> f(args...)).(Zygote.dualize.(args...))
   T = eltype(out)
   T <: Union{Dual, Complex{<:Dual}} || return (out, _ -> nothing)
   if any(eltype(a) <: Complex for a in args)
